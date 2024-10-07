@@ -1,0 +1,88 @@
+# Package ######################################################################
+
+[build-system]
+requires = ["setuptools >= 61.0.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "po_minigrid"
+description = "Minigrid Python library with partial observability."
+readme = "README.md"
+requires-python = ">= 3.7"
+authors = [{ name = "Troi Williams", email = "willkode@outlook.com" }]
+license = { text = "Apache License" }
+keywords = ["Memory, Environment, Agent, RL, Gymnasium, Partial, Observability"]
+classifiers = [
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    'Intended Audience :: Science/Research',
+    'Topic :: Scientific/Engineering :: Artificial Intelligence',
+]
+dependencies = [
+    "numpy>=1.18.0",
+    "gymnasium>=0.28.1",
+    "pygame>=2.4.0",
+    "minigrid>=2.3.1",
+]
+dynamic = ["version"]
+
+[project.urls]
+Homepage = "https://github.com/troiwill/PO-Minigrid"
+Repository = "https://github.com/troiwill/PO-Minigrid"
+Documentation = "https://github.com/troiwill/PO-Minigrid"
+"Bug Report" = "https://github.com/troiwill/PO-Minigrid/issues"
+
+[tool.setuptools]
+include-package-data = true
+
+[tool.setuptools.packages.find]
+include = ["po_minigrid*"]
+
+# Linters and Test tools #######################################################
+
+[tool.isort]
+atomic = true
+profile = "black"
+append_only = true
+src_paths = ["po_minigrid", "tests"]
+add_imports = [ "from __future__ import annotations" ]
+
+[tool.pyright]
+include = [
+    "po_minigrid/**",
+]
+
+exclude = [
+    "**/node_modules",
+    "**/__pycache__",
+]
+
+strict = []
+
+typeCheckingMode = "basic"
+pythonVersion = "3.7"
+typeshedPath = "typeshed"
+enableTypeIgnoreComments = true
+
+# This is required as the CI pre-commit does not download the module (i.e. numpy)
+#   Therefore, we have to ignore missing imports
+reportMissingImports = "none"
+
+reportUnknownMemberType = "none"
+reportUnknownParameterType = "none"
+reportUnknownVariableType = "none"
+reportUnknownArgumentType = "none"
+reportPrivateUsage = "warning"
+reportUntypedFunctionDecorator = "none"
+reportMissingTypeStubs = false
+reportUnboundVariable = "warning"
+reportGeneralTypeIssues ="none"
+reportPrivateImportUsage = "none"
+
+[tool.pytest.ini_options]
+filterwarnings = ['ignore:.*step API.*:DeprecationWarning'] # TODO: to be removed when old step API is removed
