@@ -1,56 +1,65 @@
 from __future__ import annotations
 
+from minigrid.core.grid import Grid
 import numpy as np
-import numpy.typing as npt
 
-from po_minigrid.models.noise import DiscreteNoiseModel
+from po_minigrid.models.noise_base import DiscreteNoiseModel
+from po_minigrid.models.utils import can_enter_cell, get_grid_cell
 
 
 class ObservationModel:
-    """A class representing an observation model with discrete noise.
+    """Represents an observation model for a grid-based environment.
 
-    This model can apply discrete noise to observations of a state.
+    This class handles the generation of potentially noisy observations
+    based on the true states of agents in the environment.
     """
 
-    def __init__(self, discrete_noise: npt.ArrayLike | None = None) -> None:
-        """Initialize the ObservationModel.
+    def __init__(self, noise_model: DiscreteNoiseModel | None = None) -> None:
+        """Initializes the ObservationModel with an optional noise model.
 
         Args:
-            discrete_noise: A 2D array-like object representing the discrete noise.
-                Must be a square matrix that sums to 1.0.
-
-        Raises:
-            ValueError: If the discrete_noise is not 2D, not square, or doesn't sum to 1.0.
+            noise_model: An optional DiscreteNoiseModel instance to generate noisy observations.
+                         If None, the model will return states without noise.
         """
-        super().__init__()
-        self._discrete_noise: np.ndarray | None = None
-        if discrete_noise is not None:
-            self._discrete_noise = np.array(discrete_noise, dtype=float)
-            if len(self._discrete_noise.shape) != 2:
-                raise ValueError("The discrete noise must be 2D.")
-            if self._discrete_noise.shape[0] != self._discrete_noise.shape[1]:
-                raise ValueError("The discrete noise must be a square matrix.")
-            if np.sum(discrete_noise) != 1.0:
-                raise ValueError("The discrete noise must sum to 1.0!")
+        self.noise_model = noise_model
 
-    def sample(self, state: npt.ArrayLike, **kwargs) -> npt.ArrayLike:
-        """Sample an observation from the given state.
+    def sample(
+        self, states: np.ndarray, grid: Grid | None = None, **kwargs
+    ) -> np.ndarray:
+        """Samples observations based on the true states.
 
-        If discrete noise is defined, it applies the noise to the state's position.
+        This method generates observations by either returning the unaltered states
+        or applying noise to the positions based on the noise model.
 
         Args:
-            state: An array-like object representing the current state (x, y, theta).
-            **kwargs: Additional keyword arguments (unused in this implementation).
+            states: A numpy array of shape (n, 3) representing the states.
+                    Each row contains [x, y, theta] for an agent.
+            grid: An optional Grid object representing the environment. If provided,
+                  it's used to check if the noisy positions are valid.
+            **kwargs: Additional keyword arguments (unused in this method).
 
         Returns:
-            An array-like object representing the observed state.
-        """
-        if self._discrete_noise is None:
-            return state
+            A numpy array of the same shape as 'states', containing the sampled observations.
+            If no noise model is set, this will be identical to the input states.
 
-        x, y, theta = state
-        matrix_rot_angle = theta if theta % 2 == 0 else (theta + 2) % 4
-        observd_pos = DiscreteNoiseModel.sample(
-            (x, y), np.rot90(self._discrete_noise, k=matrix_rot_angle)
+        Notes:
+            - If a noise model is set, it generates noisy positions and checks their validity
+              against the provided grid.
+            - Invalid noisy positions are replaced with the original positions.
+        """
+        # Return the state(s) if there is no noise model.
+        if self.noise_model is None:
+            return states
+
+        # Generate a noisy observation if there is a noise model.
+        noisy_offsets = self.noise_model.sample(states[:, 2])
+        noisy_pos = states[:, :2] + noisy_offsets.reshape(-1, 2)
+
+        # Determine if we can use the noisy position or the original position.
+        noisy_cells = get_grid_cell(grid, noisy_pos)
+        can_enter_cell_bools = can_enter_cell(noisy_cells)
+        states[:, :2] = np.where(
+            np.expand_dims(can_enter_cell_bools, axis=1), noisy_pos, states[:, :2]
         )
-        return (observd_pos[0], observd_pos[1], theta)
+
+        return states
