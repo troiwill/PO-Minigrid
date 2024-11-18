@@ -1,9 +1,7 @@
 from __future__ import annotations
-import math
 from typing import Any
 
 import numpy as np
-import numpy.typing as npt
 from minigrid.core.constants import TILE_PIXELS, OBJECT_TO_IDX
 from minigrid.core.world_object import Wall, WorldObj
 from minigrid.utils.rendering import (
@@ -11,10 +9,11 @@ from minigrid.utils.rendering import (
     fill_coords,
     highlight_img,
     point_in_rect,
-    point_in_triangle,
-    rotate_fn,
 )
 import minigrid.core.grid
+
+from po_minigrid.core.particles import Particles
+from po_minigrid.utils.rendering import AgentRender
 
 
 class POGrid(minigrid.core.grid.Grid):
@@ -50,8 +49,8 @@ class POGrid(minigrid.core.grid.Grid):
         highlight: bool = False,
         tile_size: int = TILE_PIXELS,
         subdivs: int = 3,
-        particles_central_dir: int | None = None,
-        particles_dirs: tuple[int, ...] | None = None,
+        belief_avg_dir: int | None = None,
+        belief_dirs: tuple[int, ...] | None = None,
     ) -> np.ndarray:
         """
         Render a tile and cache the result.
@@ -60,8 +59,8 @@ class POGrid(minigrid.core.grid.Grid):
         # Hash map lookup key for the cache
         key: tuple[Any, ...] = (
             agent_dir,
-            particles_central_dir,
-            particles_dirs,
+            belief_avg_dir,
+            hash(belief_dirs),
             highlight,
             tile_size,
         )
@@ -83,42 +82,25 @@ class POGrid(minigrid.core.grid.Grid):
 
         # Overlay the agent on top
         if agent_dir is not None:
-            tri_fn = point_in_triangle(
-                (0.12, 0.19),
-                (0.87, 0.50),
-                (0.12, 0.81),
+            render_fn = AgentRender.get_agent_rendering_fn(
+                None if agent_dir < 0 else agent_dir
             )
-
-            # Rotate the agent based on its direction
-            tri_fn = rotate_fn(tri_fn, cx=0.5, cy=0.5, theta=0.5 * math.pi * agent_dir)
-            fill_coords(img, tri_fn, (255, 0, 0))
+            fill_coords(img, render_fn, AgentRender.true_agent_color())
 
         # Overlay the agent mean on top
-        if particles_central_dir is not None:
-            tri_fn = point_in_triangle(
-                (0.12, 0.19),
-                (0.87, 0.50),
-                (0.12, 0.81),
+        if belief_avg_dir is not None:
+            render_fn = AgentRender.get_agent_rendering_fn(
+                None if belief_avg_dir < 0 else belief_avg_dir
             )
-
-            # Rotate the agent based on its direction
-            tri_fn = rotate_fn(
-                tri_fn, cx=0.5, cy=0.5, theta=0.5 * math.pi * particles_central_dir
-            )
-            fill_coords(img, tri_fn, (0, 255, 0))
+            fill_coords(img, render_fn, AgentRender.estd_agent_color())
 
         # Overlay the belief/particles on top
-        if particles_dirs is not None:
-            for dir in particles_dirs:
-                tri_fn = point_in_triangle(
-                    (0.22, 0.29),
-                    (0.77, 0.50),
-                    (0.22, 0.71),
+        if belief_dirs is not None:
+            for pdir in belief_dirs:
+                render_fn = AgentRender.get_particle_rendering_fn(
+                    None if pdir < 0 else pdir
                 )
-
-                # Rotate the agent based on its direction
-                tri_fn = rotate_fn(tri_fn, cx=0.5, cy=0.5, theta=0.5 * math.pi * dir)
-                fill_coords(img, tri_fn, (173, 216, 230))
+                fill_coords(img, render_fn, AgentRender.particle_color())
 
         # Highlight the cell if needed
         if highlight:
@@ -135,10 +117,10 @@ class POGrid(minigrid.core.grid.Grid):
     def render(
         self,
         tile_size: int,
-        agent_pos: tuple[int, int],
+        agent_pos: tuple[int, int] | np.ndarray,
         agent_dir: int | None = None,
         highlight_mask: np.ndarray | None = None,
-        particles: npt.ArrayLike | None = None,
+        particles: Particles | None = None,
     ) -> np.ndarray:
         """
         Render this grid at a given scale
@@ -156,12 +138,11 @@ class POGrid(minigrid.core.grid.Grid):
         img = np.zeros(shape=(height_px, width_px, 3), dtype=np.uint8)
 
         # Get all the unique states within the belief so that we do not draw multiple same states.
-        particles_average = None
+        particles_average: tuple[int, int, int] | None = None
+        unique_particle_data: np.ndarray | None = None
         if particles is not None:
-            particles = np.unique(np.array(particles, dtype=int), axis=0)
-            particles_average = tuple(
-                np.round(np.average(particles, axis=0), decimals=0).astype(int).tolist()
-            )
+            particles_average = particles.average
+            unique_particle_data = particles.unique()
 
         # Render the grid
         for j in range(0, self.height):
@@ -173,23 +154,25 @@ class POGrid(minigrid.core.grid.Grid):
                 agent_here = np.array_equal(agent_pos, curr_grid_pos)
 
                 # If the belief was passed, find the unique agent belief directions (headings).
-                particles_dirs = None
-                if particles is not None:
-                    particles_pos = particles[:, :2]
+                belief_dirs = None
+                if unique_particle_data is not None:
                     position_match_indices = np.array(
-                        [np.array_equal(row, curr_grid_pos) for row in particles_pos]
+                        [
+                            np.array_equal(row, curr_grid_pos)
+                            for row in unique_particle_data[:, :2]
+                        ]
                     )
 
                     if np.any(position_match_indices):
-                        particles_dirs = tuple(
-                            particles[position_match_indices, 2].tolist()
+                        belief_dirs = tuple(
+                            unique_particle_data[position_match_indices, 2].tolist()
                         )
 
-                average_dir = None
+                belief_avg_dir = None
                 if particles_average is not None and np.array_equal(
                     particles_average[:2], curr_grid_pos
                 ):
-                    average_dir = particles_average[2]
+                    belief_avg_dir = particles_average[2]
 
                 assert highlight_mask is not None
                 tile_img = POGrid.render_tile(
@@ -197,8 +180,8 @@ class POGrid(minigrid.core.grid.Grid):
                     agent_dir=agent_dir if agent_here else None,
                     highlight=highlight_mask[i, j],
                     tile_size=tile_size,
-                    particles_central_dir=average_dir,
-                    particles_dirs=particles_dirs,
+                    belief_avg_dir=belief_avg_dir,
+                    belief_dirs=belief_dirs,
                 )
 
                 ymin = j * tile_size
