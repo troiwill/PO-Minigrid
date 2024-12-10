@@ -141,8 +141,8 @@ class POGrid(minigrid.core.grid.Grid):
         particles_average: tuple[int, int, int] | None = None
         unique_particle_data: np.ndarray | None = None
         if particles is not None:
-            particles_average = particles.average
-            unique_particle_data = particles.unique()
+            particles_average = tuple(particles.average.tolist())
+            unique_particle_data = particles.unique_poses()
 
         # Render the grid
         for j in range(0, self.height):

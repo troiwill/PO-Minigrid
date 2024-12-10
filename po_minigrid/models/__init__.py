@@ -3,7 +3,9 @@ from typing import Protocol
 
 import numpy as np
 
+from po_minigrid.core.particles import Particles
+
 
 class SampleBasedModel(Protocol):
 
-    def sample(self, *args, **kwargs) -> np.ndarray: ...
+    def sample(self, *args, **kwargs) -> Particles | np.ndarray: ...

@@ -1,8 +1,10 @@
 from __future__ import annotations
+from typing import Any
 
 from minigrid.core.grid import Grid
 import numpy as np
 
+from po_minigrid.core.particles import Particles
 from po_minigrid.models.noise_base import DiscreteNoiseModel
 from po_minigrid.models.utils import can_enter_cell, get_grid_cell
 
@@ -24,7 +26,11 @@ class ObservationModel:
         self.noise_model = noise_model
 
     def sample(
-        self, states: np.ndarray, grid: Grid | None = None, **kwargs
+        self,
+        particles: Particles,
+        action: Any | None = None,
+        grid: Grid | None = None,
+        **kwargs,
     ) -> np.ndarray:
         """Samples observations based on the true states.
 
@@ -32,8 +38,9 @@ class ObservationModel:
         or applying noise to the positions based on the noise model.
 
         Args:
-            states: A numpy array of shape (n, 3) representing the states.
+            particles: A Particles object representing the states.
                     Each row contains [x, y, theta] for an agent.
+            action: The action that was applied in the transition model.
             grid: An optional Grid object representing the environment. If provided,
                   it's used to check if the noisy positions are valid.
             **kwargs: Additional keyword arguments (unused in this method).
@@ -49,17 +56,17 @@ class ObservationModel:
         """
         # Return the state(s) if there is no noise model.
         if self.noise_model is None:
-            return states
+            return particles.pose
 
         # Generate a noisy observation if there is a noise model.
-        noisy_offsets = self.noise_model.sample(states[:, 2])
-        noisy_pos = states[:, :2] + noisy_offsets.reshape(-1, 2)
+        noisy_offsets = self.noise_model.sample(particles.position)
+        noisy_pos = particles.position + noisy_offsets.reshape(-1, 2)
 
         # Determine if we can use the noisy position or the original position.
         noisy_cells = get_grid_cell(grid, noisy_pos)
         can_enter_cell_bools = can_enter_cell(noisy_cells)
-        states[:, :2] = np.where(
-            np.expand_dims(can_enter_cell_bools, axis=1), noisy_pos, states[:, :2]
+        particles.pose[:, :2] = np.where(
+            np.expand_dims(can_enter_cell_bools, axis=1), noisy_pos, particles.position
         )
 
-        return states
+        return particles.pose

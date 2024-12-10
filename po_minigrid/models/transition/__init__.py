@@ -3,15 +3,15 @@ from typing import Callable, Any
 
 from minigrid.core.actions import Actions
 from minigrid.core.grid import Grid
-import numpy as np
 
+from po_minigrid.core.particles import Particles
 from po_minigrid.models.transition.deterministic import (
     ActionForward,
     ActionLeft,
     ActionRight,
 )
 
-ActionFnType = Callable[..., np.ndarray]
+ActionFnType = Callable[..., Particles]
 NoiseFnType = ActionFnType
 
 
@@ -48,19 +48,19 @@ class TransitionModel:
 
     def sample(
         self,
-        states: np.ndarray,
+        particles: Particles,
         action: Any,
         grid: Grid,
         soft_fail: bool = True,
         **kwargs,
-    ) -> np.ndarray:
+    ) -> Particles:
         """Samples the next state given the current state and action.
 
         This method applies the specified action to the given states and then
         applies noise if a noise function is defined for the action.
 
         Args:
-            states: A numpy array representing the current state(s) of the agent(s).
+            particles: A Particles object representing the current state(s) of the agent(s).
             action: The action to be applied to the states.
             grid: The grid object representing the environment.
             soft_fail: If True, prints a warning for unimplemented actions instead of raising an error.
@@ -73,29 +73,21 @@ class TransitionModel:
         Raises:
             NotImplementedError: If the action is not implemented and soft_fail is False.
         """
-        # Accounts for the case where we pass the true agent state, which would be a 1D array.
-        state_was_flat = False
-        if states.shape == (3,):
-            state_was_flat = True
-            states = states.reshape(1, 3)
-
         # Apply an action in a deterministic manner.
         if action in self.action_dict:
-            states = self.action_dict[action](
-                states=states, action=action, grid=grid, **kwargs
+            particles = self.action_dict[action](
+                particles=particles, action=action, grid=grid, **kwargs
             )
         elif soft_fail:
             print(f"WARNING: Action {action} was not implemented.")
-            return states
+            return particles
         else:
             raise NotImplementedError(f"Action {action} was not implemented.")
 
         # Apply noise to the deterministic action.
         if action in self.noise_dict:
-            states = self.noise_dict[action](
-                states=states, action=action, grid=grid, **kwargs
+            particles = self.noise_dict[action](
+                particles=particles, action=action, grid=grid, **kwargs
             )
 
-        if state_was_flat:
-            states = states.flatten()
-        return states
+        return particles

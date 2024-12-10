@@ -44,6 +44,9 @@ class POMiniGridEnv(MiniGridEnv):
         observation_space: Any | None = None,
         **kwargs,
     ):
+        # Create the state variable.
+        self._agent_state: Particles = Particles(pose=None, is_belief=False)
+
         super().__init__(
             mission_space=mission_space,
             grid_size=grid_size,
@@ -59,13 +62,11 @@ class POMiniGridEnv(MiniGridEnv):
             agent_pov=agent_pov,
             **kwargs,
         )
+
         # Reset the grid as a PO Grid.
         self.grid = POGrid(self.width, self.height)
         self.step_count = 0
         self._terminal_states = None
-
-        # Create the state variable.
-        self._agent_state: np.ndarray = np.array([])
 
         # Create the models.
         self.transition_model: SampleBasedModel = (
@@ -82,50 +83,77 @@ class POMiniGridEnv(MiniGridEnv):
         if observation_space is not None:
             self.observation_space = copy.deepcopy(observation_space)
 
-    # @staticmethod
-    # def _cell_is_in_terminal_state(cell: WorldObj | None) -> bool:
-    #     return False if cell is None or cell.type not in ("lava", "goal") else True
+    @property
+    def agent_pos(self) -> tuple[int, int]:
+        x, y = self.agent_state.position[0]
+        return x, y
+
+    @agent_pos.setter
+    def agent_pos(self, pos: tuple[int, int] | np.ndarray | None) -> None:
+        if pos is None:
+            pos = np.array([-1, -1])
+        self._agent_state.pose[0, :2] = pos
+
+    @property
+    def agent_dir(self) -> int:
+        return self.agent_state.direction[0]
+
+    @agent_dir.setter
+    def agent_dir(self, direction: int | np.ndarray | None) -> None:
+        if direction is None:
+            direction = 0
+        self._agent_state.pose[0, 2] = direction
 
     @property
     def agent_pose(self) -> np.ndarray:
-        (x, y), theta = self.agent_pos, self.agent_dir
-        return np.array([x, y, theta])
+        return self._agent_state.pose[0].copy()
 
     @property
-    def agent_state(self) -> np.ndarray:
-        raise
+    def carrying(self) -> WorldObj | None:
+        rv = self._agent_state.carrying.get(0)
+        assert isinstance(rv, WorldObj) or rv is None
+        return rv
+
+    @carrying.setter
+    def carrying(self, carrying: WorldObj | np.ndarray | None) -> None:
+        self._agent_state.carrying.set(indices=0, values=carrying)
+
+    @property
+    def agent_state(self) -> Particles:
+        return self._agent_state
 
     def has_exceed_max_steps(self) -> bool:
         return self.step_count >= self.max_steps
-    
+
     def reset(
         self,
         *,
         seed: int | None = None,
         options: dict[str, Any] | None = None,
+        **kwargs,
     ) -> tuple[ObsType, dict[str, Any]]:
         super().reset(seed=seed)
 
         # Reinitialize episode-specific variables
-        self.agent_pos = (-1, -1)
-        self.agent_dir = -1
+        self._agent_state.reset()
 
         # Generate a new random grid at the start of each episode
         self._gen_grid(self.width, self.height)
 
         # These fields should be defined by _gen_grid
+        agent_pos = self.agent_pos
         assert (
-            self.agent_pos >= (0, 0)
-            if isinstance(self.agent_pos, tuple)
-            else all(self.agent_pos >= 0) and self.agent_dir >= 0
+            agent_pos >= (0, 0)
+            if isinstance(agent_pos, tuple)
+            else all(agent_pos >= 0) and self.agent_dir >= 0
         )
 
         # Check that the agent doesn't overlap with an object
-        start_cell = self.grid.get(*self.agent_pos)
+        start_cell = self.grid.get(*agent_pos)
         assert start_cell is None or start_cell.can_overlap()
 
         # Item picked up, being carried, initially nothing
-        self.carrying = None
+        assert self.carrying is None
 
         # Step count since episode start
         self.step_count = 0
@@ -134,81 +162,52 @@ class POMiniGridEnv(MiniGridEnv):
             self.render()
 
         # Return first observation
-        obs = self.gen_obs()
+        obs = self.observation_model.sample(
+            particles=self._agent_state, action=None, grid=self.grid, **kwargs
+        )
 
         return obs, {}
 
     def step(
         self,
         action: ActType,
+        render: bool = True,
+        **kwargs,
     ) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
         self.step_count += 1
 
-        reward = 0
         terminated = False
         truncated = False
 
         # Apply the transition model.
-        next_pose = (
-            self.transition_model.sample(
-                states=self.agent_pose, action=action, grid=self.grid
-            )
-            .flatten()
-            .tolist()
+        agent_state = self.transition_model.sample(
+            particles=self._agent_state, action=action, grid=self.grid, **kwargs
         )
-        self.agent_pos = (next_pose[0], next_pose[1])
-        self.agent_dir = next_pose[2]
+        assert isinstance(agent_state, Particles)
+        self._agent_state = agent_state
+
+        # Get an observation.
+        obs = self.observation_model.sample(
+            particles=self._agent_state, action=action, grid=self.grid, **kwargs
+        )
+
+        reward = self.reward_model.sample(
+            particles=self.agent_state, action=action, grid=self.grid, **kwargs
+        )
+        assert isinstance(reward, np.ndarray)
+        reward = reward.item()
 
         next_cell = self.grid.get(*self.agent_pos)
-        if next_cell is not None and next_cell.type == "goal":
-            terminated = True
-            reward = self.reward_model.sample(
-                states=self.agent_state, action=action, grid=self.grid
-            )
-        if next_cell is not None and next_cell.type == "lava":
+        if next_cell is not None and next_cell.type in ("goal", "lava"):
             terminated = True
 
-        # # Pick up an object
-        # elif action == self.actions.pickup:
-        #     if fwd_cell and fwd_cell.can_pickup():
-        #         if self.carrying is None:
-        #             self.carrying = fwd_cell
-        #             self.carrying.cur_pos = np.array([-1, -1])
-        #             self.grid.set(fwd_pos[0], fwd_pos[1], None)
-
-        # # Drop an object
-        # elif action == self.actions.drop:
-        #     if not fwd_cell and self.carrying:
-        #         self.grid.set(fwd_pos[0], fwd_pos[1], self.carrying)
-        #         self.carrying.cur_pos = fwd_pos
-        #         self.carrying = None
-
-        # # Toggle/activate an object
-        # elif action == self.actions.toggle:
-        #     if fwd_cell:
-        #         fwd_cell.toggle(self, fwd_pos)
-
-        # Done action (not used by default)
-        # elif action == self.actions.done:
-        #     pass
-
-        # else:
-        #     raise ValueError(f"Unknown action: {action}")
-
-        if self.step_count >= self.max_steps:
+        if self.has_exceed_max_steps():
             truncated = True
 
-        if self.render_mode == "human":
+        if render and self.render_mode == "human":
             self.render()
 
-        obs = self.gen_obs()
-
         return obs, reward, terminated, truncated, {}
-    
-    def _update_minigrid_vars(self) -> None:
-        agent_state = self.agent_state
-        self.agent_pos = (agent_state[0], agent_state[1])
-        self.agent_dir = agent_state[2]
 
     def gen_obs_grid(self, agent_view_size=None):
         """
@@ -318,7 +317,7 @@ class POMiniGridEnv(MiniGridEnv):
         highlight: bool = True,
         tile_size: int = TILE_PIXELS,
         agent_pov: bool = False,
-        particles: np.ndarray | None = None,
+        particles: Particles | None = None,
     ):
         """Returns an RGB image corresponding to the whole environment or the agent's point of view.
 
@@ -338,7 +337,7 @@ class POMiniGridEnv(MiniGridEnv):
         else:
             return self.get_full_render(highlight, tile_size, particles)
 
-    def render(self, particles: np.ndarray | None = None) -> np.ndarray:
+    def render(self, particles: Particles | None = None) -> np.ndarray | None:
         img = self.get_frame(self.highlight, self.tile_size, self.agent_pov, particles)
 
         if self.render_mode == "human":
@@ -349,7 +348,7 @@ class POMiniGridEnv(MiniGridEnv):
                 pygame.init()
                 pygame.display.init()
                 self.window = pygame.display.set_mode(
-                    (self.screen_size, self.screen_size)
+                    (self.screen_size, self.screen_size)  # type: ignore
                 )
                 pygame.display.set_caption("minigrid")
             if self.clock is None:
@@ -366,11 +365,11 @@ class POMiniGridEnv(MiniGridEnv):
             bg.fill((255, 255, 255))
             bg.blit(surf, (offset / 2, 0))
 
-            bg = pygame.transform.smoothscale(bg, (self.screen_size, self.screen_size))
+            bg = pygame.transform.smoothscale(bg, (self.screen_size, self.screen_size))  # type: ignore
 
             font_size = 22
             text = self.mission
-            font = pygame.freetype.SysFont(pygame.font.get_default_font(), font_size)
+            font = pygame.freetype.SysFont(pygame.font.get_default_font(), font_size)  # type: ignore
             text_rect = font.get_rect(text, size=font_size)
             text_rect.center = bg.get_rect().center
             text_rect.y = bg.get_height() - font_size * 1.5
@@ -380,6 +379,7 @@ class POMiniGridEnv(MiniGridEnv):
             pygame.event.pump()
             self.clock.tick(self.metadata["render_fps"])
             pygame.display.flip()
+            return None
 
         elif self.render_mode == "rgb_array":
             return img
