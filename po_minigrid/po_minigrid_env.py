@@ -44,6 +44,9 @@ class POMiniGridEnv(MiniGridEnv):
         observation_space: Any | None = None,
         **kwargs,
     ):
+        # Create the state variable.
+        self._agent_state: Particles = Particles(pose=None, is_belief=False)
+
         super().__init__(
             mission_space=mission_space,
             grid_size=grid_size,
@@ -59,13 +62,11 @@ class POMiniGridEnv(MiniGridEnv):
             agent_pov=agent_pov,
             **kwargs,
         )
+
         # Reset the grid as a PO Grid.
         self.grid = POGrid(self.width, self.height)
         self.step_count = 0
         self._terminal_states = None
-
-        # Create the state variable.
-        self._agent_state: Particles = Particles.init()
 
         # Create the models.
         self.transition_model: SampleBasedModel = (
@@ -84,11 +85,14 @@ class POMiniGridEnv(MiniGridEnv):
 
     @property
     def agent_pos(self) -> tuple[int, int]:
-        return tuple(self.agent_state.position[0].tolist())
+        x, y = self.agent_state.position[0]
+        return x, y
 
     @agent_pos.setter
     def agent_pos(self, pos: tuple[int, int] | np.ndarray | None) -> None:
-        pass
+        if pos is None:
+            pos = np.array([-1, -1])
+        self._agent_state.pose[0, :2] = pos
 
     @property
     def agent_dir(self) -> int:
@@ -96,19 +100,23 @@ class POMiniGridEnv(MiniGridEnv):
 
     @agent_dir.setter
     def agent_dir(self, direction: int | np.ndarray | None) -> None:
-        pass
+        if direction is None:
+            direction = 0
+        self._agent_state.pose[0, 2] = direction
 
     @property
     def agent_pose(self) -> np.ndarray:
-        return self.agent_state.pose
+        return self._agent_state.pose[0].copy()
 
     @property
     def carrying(self) -> WorldObj | None:
-        return self.agent_state.carrying.item()
+        rv = self._agent_state.carrying.get(0)
+        assert isinstance(rv, WorldObj) or rv is None
+        return rv
 
     @carrying.setter
     def carrying(self, carrying: WorldObj | np.ndarray | None) -> None:
-        pass
+        self._agent_state.carrying.set(indices=0, values=carrying)
 
     @property
     def agent_state(self) -> Particles:
@@ -122,6 +130,7 @@ class POMiniGridEnv(MiniGridEnv):
         *,
         seed: int | None = None,
         options: dict[str, Any] | None = None,
+        **kwargs,
     ) -> tuple[ObsType, dict[str, Any]]:
         super().reset(seed=seed)
 
@@ -153,72 +162,50 @@ class POMiniGridEnv(MiniGridEnv):
             self.render()
 
         # Return first observation
-        obs = self.gen_obs()
+        obs = self.observation_model.sample(
+            particles=self._agent_state, action=None, grid=self.grid, **kwargs
+        )
 
         return obs, {}
 
     def step(
         self,
         action: ActType,
+        render: bool = True,
+        **kwargs,
     ) -> tuple[ObsType, SupportsFloat, bool, bool, dict[str, Any]]:
         self.step_count += 1
 
-        reward = 0
         terminated = False
         truncated = False
 
         # Apply the transition model.
         agent_state = self.transition_model.sample(
-            particles=self.agent_state, action=action, grid=self.grid
+            particles=self._agent_state, action=action, grid=self.grid, **kwargs
         )
         assert isinstance(agent_state, Particles)
         self._agent_state = agent_state
 
+        # Get an observation.
+        obs = self.observation_model.sample(
+            particles=self._agent_state, action=action, grid=self.grid, **kwargs
+        )
+
+        reward = self.reward_model.sample(
+            particles=self.agent_state, action=action, grid=self.grid, **kwargs
+        )
+        assert isinstance(reward, np.ndarray)
+        reward = reward.item()
+
         next_cell = self.grid.get(*self.agent_pos)
-        if next_cell is not None and next_cell.type == "goal":
+        if next_cell is not None and next_cell.type in ("goal", "lava"):
             terminated = True
-            reward = self.reward_model.sample(
-                particles=self.agent_state, action=action, grid=self.grid
-            )
-            assert isinstance(reward, float)
-            
-        if next_cell is not None and next_cell.type == "lava":
-            terminated = True
-
-        # # Pick up an object
-        # elif action == self.actions.pickup:
-        #     if fwd_cell and fwd_cell.can_pickup():
-        #         if self.carrying is None:
-        #             self.carrying = fwd_cell
-        #             self.carrying.cur_pos = np.array([-1, -1])
-        #             self.grid.set(fwd_pos[0], fwd_pos[1], None)
-
-        # # Drop an object
-        # elif action == self.actions.drop:
-        #     if not fwd_cell and self.carrying:
-        #         self.grid.set(fwd_pos[0], fwd_pos[1], self.carrying)
-        #         self.carrying.cur_pos = fwd_pos
-        #         self.carrying = None
-
-        # # Toggle/activate an object
-        # elif action == self.actions.toggle:
-        #     if fwd_cell:
-        #         fwd_cell.toggle(self, fwd_pos)
-
-        # Done action (not used by default)
-        # elif action == self.actions.done:
-        #     pass
-
-        # else:
-        #     raise ValueError(f"Unknown action: {action}")
 
         if self.has_exceed_max_steps():
             truncated = True
 
-        if self.render_mode == "human":
+        if render and self.render_mode == "human":
             self.render()
-
-        obs = self.gen_obs()
 
         return obs, reward, terminated, truncated, {}
 

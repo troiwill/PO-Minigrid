@@ -8,14 +8,13 @@ build-backend = "setuptools.build_meta"
 name = "po_minigrid"
 description = "Minigrid Python library with partial observability."
 readme = "README.md"
-requires-python = ">= 3.7"
+requires-python = ">= 3.8"
 authors = [{ name = "Troi Williams", email = "willkode@outlook.com" }]
 license = { text = "Apache License" }
 keywords = ["Memory, Environment, Agent, RL, Gymnasium, Partial, Observability"]
 classifiers = [
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
@@ -65,7 +64,7 @@ exclude = [
 strict = []
 
 typeCheckingMode = "basic"
-pythonVersion = "3.7"
+pythonVersion = "3.8"
 typeshedPath = "typeshed"
 enableTypeIgnoreComments = true
 

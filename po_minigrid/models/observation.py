@@ -1,4 +1,5 @@
 from __future__ import annotations
+from typing import Any
 
 from minigrid.core.grid import Grid
 import numpy as np
@@ -25,7 +26,11 @@ class ObservationModel:
         self.noise_model = noise_model
 
     def sample(
-        self, particles: Particles, grid: Grid | None = None, **kwargs
+        self,
+        particles: Particles,
+        action: Any | None = None,
+        grid: Grid | None = None,
+        **kwargs,
     ) -> np.ndarray:
         """Samples observations based on the true states.
 
@@ -35,6 +40,7 @@ class ObservationModel:
         Args:
             particles: A Particles object representing the states.
                     Each row contains [x, y, theta] for an agent.
+            action: The action that was applied in the transition model.
             grid: An optional Grid object representing the environment. If provided,
                   it's used to check if the noisy positions are valid.
             **kwargs: Additional keyword arguments (unused in this method).
@@ -59,7 +65,7 @@ class ObservationModel:
         # Determine if we can use the noisy position or the original position.
         noisy_cells = get_grid_cell(grid, noisy_pos)
         can_enter_cell_bools = can_enter_cell(noisy_cells)
-        particles.position = np.where(
+        particles.pose[:, :2] = np.where(
             np.expand_dims(can_enter_cell_bools, axis=1), noisy_pos, particles.position
         )
 

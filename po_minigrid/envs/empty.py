@@ -19,7 +19,7 @@ class POEmptyEnv(POMiniGridEnv):
     ## Description
 
     This environment is an empty room, where we showcase an agent (red) moving in a square
-    pattern. As the agent moves, particles (light blue) begin to disperse with increasing 
+    pattern. As the agent moves, particles (light blue) begin to disperse with increasing
     uncertainty as the agent moves.
 
     ## Mission Space
@@ -50,14 +50,11 @@ class POEmptyEnv(POMiniGridEnv):
     def __init__(
         self,
         size=8,
-        agent_start_pos=(1, 1),
-        agent_start_dir=0,
+        agent_start_pose=(1, 1, 0),
         max_steps: int | None = None,
         **kwargs,
     ):
-        self.agent_start_pos = agent_start_pos
-        self.agent_start_dir = agent_start_dir
-
+        self.agent_start_pose = agent_start_pose
         mission_space = MissionSpace(mission_func=self._gen_mission)
 
         if max_steps is None:
@@ -84,9 +81,8 @@ class POEmptyEnv(POMiniGridEnv):
         self.grid.wall_rect(0, 0, width, height)
 
         # Place the agent
-        if self.agent_start_pos is not None:
-            self.agent_state.position = np.array([self.agent_start_pos]).flatten()
-            self.agent_state.direction = np.array([self.agent_start_dir]).flatten()
+        if self.agent_start_pose is not None:
+            self.agent_state.pose = np.array([self.agent_start_pose]).reshape(1, 3)
         else:
             self.place_agent()
 
@@ -95,19 +91,18 @@ class POEmptyEnv(POMiniGridEnv):
 
 def main():
     # Generate the environment.
-    start_state: tuple[int, int, int] = (2, 2, 0)
+    start_state: tuple[int, int, int] = (3, 3, 0)
     grid_size = 11
     env = POEmptyEnv(
         render_mode="human",
         size=grid_size,
-        agent_start_pos=start_state[:2],
-        agent_start_dir=start_state[2],
+        agent_start_pose=start_state,
     )
     env.reset()
 
     # Create the particle distribution.
-    particles = Particles.init(
-        poses=np.full((10_000, 3), start_state, dtype=int),
+    particles = Particles(
+        pose=np.full((10_000, 3), start_state, dtype=int), is_belief=True
     )
 
     # Create the transition model.

@@ -3,7 +3,6 @@ from typing import Callable, Any
 
 from minigrid.core.actions import Actions
 from minigrid.core.grid import Grid
-import numpy as np
 
 from po_minigrid.core.particles import Particles
 from po_minigrid.models.transition.deterministic import (
@@ -12,7 +11,7 @@ from po_minigrid.models.transition.deterministic import (
     ActionRight,
 )
 
-ActionFnType = Callable[..., np.ndarray]
+ActionFnType = Callable[..., Particles]
 NoiseFnType = ActionFnType
 
 
@@ -76,8 +75,8 @@ class TransitionModel:
         """
         # Apply an action in a deterministic manner.
         if action in self.action_dict:
-            particles.pose = self.action_dict[action](
-                states=particles.pose, action=action, grid=grid, **kwargs
+            particles = self.action_dict[action](
+                particles=particles, action=action, grid=grid, **kwargs
             )
         elif soft_fail:
             print(f"WARNING: Action {action} was not implemented.")
@@ -87,8 +86,8 @@ class TransitionModel:
 
         # Apply noise to the deterministic action.
         if action in self.noise_dict:
-            particles.pose = self.noise_dict[action](
-                states=particles.pose, action=action, grid=grid, **kwargs
+            particles = self.noise_dict[action](
+                particles=particles, action=action, grid=grid, **kwargs
             )
 
         return particles
