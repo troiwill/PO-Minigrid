@@ -41,13 +41,16 @@ jobs:
 
       - name: Run tests
         run: |
+          echo "Running pytest"
+          
+          pip install pytest
           pytest
 
       - name: Run linters
         run: |
           echo "Running linters"
 
-          pip install black
+          pip install black flack8 isort
           flake8 .
           isort --check-only . 2>&1
           black --check . 2>&1

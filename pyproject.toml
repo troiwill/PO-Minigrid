@@ -27,7 +27,6 @@ dependencies = [
     "gymnasium>=0.28.1",
     "pygame>=2.4.0",
     "minigrid>=2.3.1",
-    "pytest",
 ]
 dynamic = ["version"]
 
