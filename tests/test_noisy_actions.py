@@ -49,7 +49,7 @@ def test_noisy_forward(theta: int, potential_offsets: np.ndarray):
 
     noise_model = NoisyForward(DiscreteNoiseModel(noise))
     noisy_offsets = noise_model(particles).position
-    assert np.alltrue(
+    assert np.all(
         [
             np.any([np.equal(noff, poff) for poff in potential_offsets])
             for noff in noisy_offsets
