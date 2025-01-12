@@ -1,8 +1,10 @@
 from __future__ import annotations
+
 from typing import Any
 
+import minigrid.core.grid
 import numpy as np
-from minigrid.core.constants import TILE_PIXELS, OBJECT_TO_IDX
+from minigrid.core.constants import OBJECT_TO_IDX, TILE_PIXELS
 from minigrid.core.world_object import Wall, WorldObj
 from minigrid.utils.rendering import (
     downsample,
@@ -10,7 +12,6 @@ from minigrid.utils.rendering import (
     highlight_img,
     point_in_rect,
 )
-import minigrid.core.grid
 
 from po_minigrid.core.particles import Particles
 from po_minigrid.utils.rendering import AgentRender

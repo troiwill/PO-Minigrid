@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import numpy as np
+import numpy.typing as npt
 from minigrid.core.constants import DIR_TO_VEC
 from minigrid.core.grid import Grid
 from minigrid.core.world_object import WorldObj
-import numpy as np
-import numpy.typing as npt
 
 from po_minigrid.utils.decorate import np_vectorize
 

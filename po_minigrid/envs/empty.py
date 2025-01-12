@@ -2,16 +2,16 @@ from __future__ import annotations
 
 import time
 
+import numpy as np
 from minigrid.core.actions import Actions
 from minigrid.core.mission import MissionSpace
-import numpy as np
 
+from po_minigrid.core.particles import Particles
+from po_minigrid.core.po_grid import POGrid
 from po_minigrid.models.noise_base import DiscreteNoiseModel
 from po_minigrid.models.transition import TransitionModel
 from po_minigrid.models.transition.noise import NoisyForward
 from po_minigrid.po_minigrid_env import POMiniGridEnv
-from po_minigrid.core.particles import Particles
-from po_minigrid.core.po_grid import POGrid
 
 
 class POEmptyEnv(POMiniGridEnv):

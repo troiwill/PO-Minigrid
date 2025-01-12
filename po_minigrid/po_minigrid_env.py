@@ -3,19 +3,19 @@ from __future__ import annotations
 import copy
 from typing import Any, SupportsFloat
 
+import numpy as np
+import pygame
 from gymnasium.core import ActType, ObsType
-from minigrid.minigrid_env import MiniGridEnv
 from minigrid.core.constants import TILE_PIXELS
 from minigrid.core.mission import MissionSpace
 from minigrid.core.world_object import WorldObj
-import numpy as np
-import pygame
+from minigrid.minigrid_env import MiniGridEnv
 
 from po_minigrid.core.particles import Particles
 from po_minigrid.core.po_grid import POGrid
 from po_minigrid.models import SampleBasedModel
-from po_minigrid.models.reward import RewardModel
 from po_minigrid.models.observation import ObservationModel
+from po_minigrid.models.reward import RewardModel
 from po_minigrid.models.transition import TransitionModel
 
 

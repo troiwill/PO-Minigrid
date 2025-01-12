@@ -1,13 +1,10 @@
 from __future__ import annotations
-from enum import IntEnum
+
 import math
+from enum import IntEnum
 from typing import Callable
 
-from minigrid.utils.rendering import (
-    point_in_circle,
-    point_in_triangle,
-    rotate_fn,
-)
+from minigrid.utils.rendering import point_in_circle, point_in_triangle, rotate_fn
 
 
 class RENDER_OPTIONS(IntEnum):

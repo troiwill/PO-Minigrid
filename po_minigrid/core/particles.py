@@ -1,10 +1,11 @@
 from __future__ import annotations
+
 import copy
 from functools import cached_property
-from typing import Any, List, Tuple, Union, Sequence
+from typing import Any, List, Sequence, Tuple, Union
 
-from minigrid.core.world_object import WorldObj
 import numpy as np
+from minigrid.core.world_object import WorldObj
 
 ParticleArrayDtype = List[Union[Tuple[str, type], Tuple[str, type, Tuple[Any]]]]
 ParticleArrayIndex = Union[int, Sequence[int], np.ndarray]

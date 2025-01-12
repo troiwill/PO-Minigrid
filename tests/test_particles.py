@@ -1,5 +1,7 @@
-import pytest
+from __future__ import annotations
+
 import numpy as np
+import pytest
 
 from po_minigrid.core.particles import Particles
 

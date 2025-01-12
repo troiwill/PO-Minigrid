@@ -1,15 +1,14 @@
 from __future__ import annotations
 
-from minigrid.core.grid import Grid
 import numpy as np
+from minigrid.core.grid import Grid
 
 from po_minigrid.core.particles import Particles
-from po_minigrid.models.utils import (
-    headings_are_valid,
-    get_grid_cell,
-    compute_fwd_pos,
+from po_minigrid.models.utils import (  # can_pickup_cell,
     can_enter_cell,
-    # can_pickup_cell,
+    compute_fwd_pos,
+    get_grid_cell,
+    headings_are_valid,
 )
 
 

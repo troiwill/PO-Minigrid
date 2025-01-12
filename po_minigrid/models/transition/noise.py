@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from minigrid.core.grid import Grid
 import numpy as np
+from minigrid.core.grid import Grid
 
 from po_minigrid.core.particles import Particles
 from po_minigrid.models.noise_base import NoiseModel
