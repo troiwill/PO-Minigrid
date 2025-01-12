@@ -8,4 +8,5 @@ from po_minigrid.core.particles import Particles
 
 class SampleBasedModel(Protocol):
 
-    def sample(self, *args, **kwargs) -> Particles | np.ndarray: ...
+    def sample(self, *args, **kwargs) -> Particles | np.ndarray:
+        ...

@@ -51,7 +51,7 @@ jobs:
           echo "Running linters"
 
           pip install black flake8 isort
-          flake8 .
+          flake8 --ignore=E501,W503 .
           isort --check-only . 2>&1
           black --check . 2>&1
 

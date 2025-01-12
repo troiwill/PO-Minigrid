@@ -9,7 +9,7 @@ from po_minigrid.models.utils import (
     get_grid_cell,
     compute_fwd_pos,
     can_enter_cell,
-    can_pickup_cell,
+    # can_pickup_cell,
 )
 
 
