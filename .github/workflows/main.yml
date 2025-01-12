@@ -36,11 +36,12 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          python -m pip install --upgrade pip
+          pip install .[test]
 
       - name: Run tests
         run: |
-          pytest --doctest-modules --junitxml=junit/pytest-results-${{ matrix.python-version }}.xml --cov=$PROJECT_NAME --cov-report=xml tests/
+          pytest
 
       - name: Run linters
         run: |
