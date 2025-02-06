@@ -27,9 +27,9 @@ class POMiniGridEnv(MiniGridEnv):
     def __init__(
         self,
         mission_space: MissionSpace,
-        transition_model: SampleBasedModel | None = None,
-        observation_model: SampleBasedModel | None = None,
-        reward_model: SampleBasedModel | None = None,
+        transition_model: SampleBasedModel = TransitionModel(),
+        observation_model: SampleBasedModel = ObservationModel(),
+        reward_model: SampleBasedModel = RewardModel(),
         grid_size: int | None = None,
         width: int | None = None,
         height: int | None = None,
@@ -69,15 +69,9 @@ class POMiniGridEnv(MiniGridEnv):
         self._terminal_states = None
 
         # Create the models.
-        self.transition_model: SampleBasedModel = (
-            transition_model if transition_model is not None else TransitionModel()
-        )
-        self.observation_model: SampleBasedModel = (
-            observation_model if observation_model is not None else ObservationModel()
-        )
-        self.reward_model: SampleBasedModel = (
-            reward_model if reward_model is not None else RewardModel()
-        )
+        self.transition_model: SampleBasedModel = transition_model
+        self.observation_model: SampleBasedModel = observation_model
+        self.reward_model: SampleBasedModel = reward_model
 
         # Reset the observation space if the parameter is not None.
         if observation_space is not None:
