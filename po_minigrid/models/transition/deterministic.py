@@ -4,12 +4,31 @@ import numpy as np
 from minigrid.core.grid import Grid
 
 from po_minigrid.core.particles import Particles
-from po_minigrid.models.utils import (  # can_pickup_cell,
+from po_minigrid.models.utils import (
     can_enter_cell,
     compute_fwd_pos,
     get_grid_cell,
     headings_are_valid,
 )
+
+
+class ActionNothing:
+    """Represents an action that does nothing.
+
+    This class implements the no-op action for agents in a grid-based environment.
+    """
+
+    def __call__(self, particles: Particles, **kwargs) -> Particles:
+        """Applies a no-op action to the given particles.
+
+        Args:
+            particles: A Particles instance representing the current states of the agents.
+            **kwargs: Additional keyword arguments (unused in this method).
+
+        Returns:
+            A Particles object with the same states as the input.
+        """
+        return particles
 
 
 class ActionLeft:
