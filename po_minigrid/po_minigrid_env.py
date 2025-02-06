@@ -13,7 +13,7 @@ from minigrid.minigrid_env import MiniGridEnv
 
 from po_minigrid.core.particles import Particles
 from po_minigrid.core.po_grid import POGrid
-from po_minigrid.models import SampleBasedModel
+from po_minigrid.models.base import SampleBasedModel
 from po_minigrid.models.observation import ObservationModel
 from po_minigrid.models.reward import RewardModel
 from po_minigrid.models.transition import TransitionModel
