@@ -42,6 +42,7 @@ class POMiniGridEnv(MiniGridEnv):
         tile_size: int = TILE_PIXELS,
         agent_pov: bool = False,
         observation_space: Any | None = None,
+        terminal_cell_types: tuple[str, ...] = ("goal", "lava"),
         **kwargs,
     ):
         # Create the state variable.
@@ -72,6 +73,9 @@ class POMiniGridEnv(MiniGridEnv):
         self.transition_model: SampleBasedModel = transition_model
         self.observation_model: SampleBasedModel = observation_model
         self.reward_model: SampleBasedModel = reward_model
+
+        # Set the terminal cell types.
+        self.terminal_cell_types = terminal_cell_types
 
         # Reset the observation space if the parameter is not None.
         if observation_space is not None:
@@ -185,6 +189,7 @@ class POMiniGridEnv(MiniGridEnv):
             particles=self._agent_state, action=action, grid=self.grid, **kwargs
         )
 
+        # Get a reward and, for now, ensure it is a scalar.
         reward = self.reward_model.sample(
             particles=self.agent_state, action=action, grid=self.grid, **kwargs
         )
@@ -192,7 +197,7 @@ class POMiniGridEnv(MiniGridEnv):
         reward = reward.item()
 
         next_cell = self.grid.get(*self.agent_pos)
-        if next_cell is not None and next_cell.type in ("goal", "lava"):
+        if next_cell is not None and next_cell.type in self.terminal_cell_types:
             terminated = True
 
         if self.has_exceed_max_steps():
