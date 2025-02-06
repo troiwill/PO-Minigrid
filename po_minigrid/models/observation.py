@@ -60,14 +60,15 @@ class ObservationModel:
             return particles.pose
 
         # Generate a noisy observation if there is a noise model.
-        noisy_offsets = self.noise_model.sample(particles.position)
+        pose = particles.pose.copy()
+        noisy_offsets = self.noise_model.sample(pose[:, 2])
         noisy_pos = particles.position + noisy_offsets.reshape(-1, 2)
 
         # Determine if we can use the noisy position or the original position.
         noisy_cells = get_grid_cell(grid, noisy_pos)
         can_enter_cell_bools = can_enter_cell(noisy_cells)
-        particles.pose[:, :2] = np.where(
-            np.expand_dims(can_enter_cell_bools, axis=1), noisy_pos, particles.position
+        pose[:, :2] = np.where(
+            np.expand_dims(can_enter_cell_bools, axis=1), noisy_pos, pose[:, :2]
         )
 
-        return particles.pose
+        return pose
