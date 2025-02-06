@@ -7,6 +7,8 @@ from typing import Any, List, Sequence, Tuple, Union
 import numpy as np
 from minigrid.core.world_object import WorldObj
 
+from po_minigrid.models.utils import compute_fwd_pos
+
 ParticleArrayDtype = List[Union[Tuple[str, type], Tuple[str, type, Tuple[Any]]]]
 ParticleArrayIndex = Union[int, Sequence[int], np.ndarray]
 ParticleArrayObjectValues = Union[
@@ -114,6 +116,10 @@ class Particles:
     @property
     def toggled(self) -> WorldObjectArray:
         return self._toggled
+
+    @property
+    def fwd_pos(self) -> np.ndarray:
+        return compute_fwd_pos(self.pose)
 
     @property
     def pose(self) -> np.ndarray:
