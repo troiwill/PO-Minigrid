@@ -130,41 +130,16 @@ class POMiniGridEnv(MiniGridEnv):
         options: dict[str, Any] | None = None,
         **kwargs,
     ) -> tuple[ObsType, dict[str, Any]]:
-        super().reset(seed=seed)
-
         # Reinitialize episode-specific variables
         self._agent_state.reset()
 
-        # Generate a new random grid at the start of each episode
-        self._gen_grid(self.width, self.height)
-
-        # These fields should be defined by _gen_grid
-        agent_pos = self.agent_pos
-        assert (
-            agent_pos >= (0, 0)
-            if isinstance(agent_pos, tuple)
-            else all(agent_pos >= 0) and self.agent_dir >= 0
-        )
-
-        # Check that the agent doesn't overlap with an object
-        start_cell = self.grid.get(*agent_pos)
-        assert start_cell is None or start_cell.can_overlap()
+        # Reset the environment via the base class.
+        super().reset(seed=seed)
 
         # Item picked up, being carried, initially nothing
         assert self.carrying is None
 
-        # Step count since episode start
-        self.step_count = 0
-
-        if self.render_mode == "human":
-            self.render()
-
-        # Return first observation
-        obs = self.observation_model.sample(
-            particles=self._agent_state, action=None, grid=self.grid, **kwargs
-        )
-
-        return obs, {}
+        return self.gen_obs(), self.gen_info()
 
     def step(
         self,
@@ -206,7 +181,7 @@ class POMiniGridEnv(MiniGridEnv):
         if render and self.render_mode == "human":
             self.render()
 
-        return obs, reward, terminated, truncated, {}
+        return obs, reward, terminated, truncated, self.gen_info()
 
     def gen_obs_grid(self, agent_view_size=None):
         """
