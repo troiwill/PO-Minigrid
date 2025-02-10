@@ -32,7 +32,7 @@ class ObservationModel:
         action: Any | None = None,
         grid: Grid | None = None,
         **kwargs,
-    ) -> np.ndarray:
+    ) -> dict[str, np.ndarray]:
         """Samples observations based on the true states.
 
         This method generates observations by either returning the unaltered states
@@ -57,7 +57,7 @@ class ObservationModel:
         """
         # Return the state(s) if there is no noise model.
         if self.noise_model is None:
-            return particles.pose
+            return {"pose": particles.pose}
 
         # Generate a noisy observation if there is a noise model.
         pose = particles.pose.copy()
@@ -65,10 +65,11 @@ class ObservationModel:
         noisy_pos = particles.position + noisy_offsets.reshape(-1, 2)
 
         # Determine if we can use the noisy position or the original position.
-        noisy_cells = get_grid_cell(grid, noisy_pos)
-        can_enter_cell_bools = can_enter_cell(noisy_cells)
-        pose[:, :2] = np.where(
-            np.expand_dims(can_enter_cell_bools, axis=1), noisy_pos, pose[:, :2]
-        )
+        # noisy_cells = get_grid_cell(grid, noisy_pos)
+        # can_enter_cell_bools = can_enter_cell(noisy_cells)
+        # pose[:, :2] = np.where(
+        #     np.expand_dims(can_enter_cell_bools, axis=1), noisy_pos, pose[:, :2]
+        # )
+        pose[:, :2] = noisy_pos
 
-        return pose
+        return {"pose": pose}
